@@ -1,0 +1,557 @@
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE MFRC522
+OBJECT MODULE PLACED IN .\Objects\mfrc522.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE mfrc522.c COMPACT OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Li
+                    -stings\mfrc522.lst) TABS(2) OBJECT(.\Objects\mfrc522.obj)
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #include <intrins.h>
+   3          #include "mfrc522.h"
+   4          #include "system.h"
+   5          #define MAXRLEN 18
+   6          //////////////////////////////////
+   7          //¶Ë¿Ú¶¨Òå
+   8          //////////////////////////////////
+   9          //RFID-RC522
+  10          sbit     MF522_NSS  =    P1^4;      //Æ¬Ñ¡
+  11          sbit     MF522_SCK  =    P1^1;
+  12          sbit     MF522_SI   =    P1^0;
+  13          sbit     MF522_SO   =    P1^2;
+  14          sbit     MF522_RST  =    P1^3; 
+  15          
+  16          //////////////////////////////////////////////////////////////////////
+  17          //ÉèÖÃRC522µÄ¹¤×÷·½Ê½ 
+  18          //////////////////////////////////////////////////
+  19          char M500PcdConfigISOType(unsigned char type){
+  20   1         if (type == 'A')                     //ISO14443_A
+  21   1         { 
+  22   2             ClearBitMask(Status2Reg,0x08);
+  23   2             WriteRawRC(ModeReg,0x3D);//3
+  24   2             WriteRawRC(RxSelReg,0x86);//
+  25   2             WriteRawRC(RFCfgReg,0x7F);   //4F
+  26   2             WriteRawRC(TReloadRegL,30);//tmoLength);// TReloadVal = 'h6a =tmoLength(dec) 
+  27   2             WriteRawRC(TReloadRegH,0);
+  28   2             WriteRawRC(TModeReg,0x8D);
+  29   2             WriteRawRC(TPrescalerReg,0x3E);
+  30   2             delay(1);
+  31   2             PcdAntennaOn();
+  32   2         }
+  33   1         else{ return -1; }
+  34   1         
+  35   1         return MI_OK;
+  36   1      }
+  37          
+  38          /////////////////////////////////////////////////
+  39          //¹¦ÄÜ£ºÏòRC522µÄ¼Ä´æÆ÷ÀïÃæÐ´ÃüÁî¡ª¡ªSPIÍ¨ÐÅ£¨51--->rfid-rc522£©
+  40          //²ÎÊý£ºAddress:¼Ä´æÆ÷µÄµØÖ·
+  41          //²ÎÊý£ºvalue£ºÏëÒªÐ´ÈëµÄÃüÁî
+  42          /////////////////////////////////////////////////
+  43          void WriteRawRC(unsigned char Address,unsigned char value)
+  44          {
+  45   1        unsigned char i,ucAddr;
+  46   1        MF522_SCK=0;
+  47   1        MF522_NSS=0;
+  48   1        ucAddr = (Address<<1)&0x7E;
+  49   1        for(i=8;i>0;i--)
+  50   1        {
+  51   2          MF522_SI = ((ucAddr & 0x80)==0x80);
+  52   2          MF522_SCK = 1;
+  53   2          ucAddr<<=1;
+  54   2          MF522_SCK = 0;
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 2   
+
+  55   2        }
+  56   1        for(i=8;i>0;i--)
+  57   1          {
+  58   2              MF522_SI = ((value&0x80)==0x80);
+  59   2              MF522_SCK = 1;
+  60   2              value <<= 1;
+  61   2              MF522_SCK = 0;
+  62   2          }
+  63   1          MF522_NSS = 1;
+  64   1          MF522_SCK = 1;
+  65   1      }
+  66          //////////////////////////////////////////////
+  67          //¹¦ÄÜ£º¶Á³ö¼Ä´æÆ÷ÀïÃæµÄÖµ
+  68          //²ÎÊýËµÃ÷£ºAddress ¼Ä´æÆ÷µØÖ·
+  69          //·µ»Ø£º¶Á³öµÄÖµ
+  70          //////////////////////////////////////////////
+  71          unsigned char ReadRawRC(unsigned char Address)
+  72          {
+  73   1        unsigned char i,ucAddr;
+  74   1        unsigned char res;
+  75   1        MF522_SCK = 0;
+  76   1        MF522_NSS = 0;
+  77   1        ucAddr = (((Address<<1)&0x7e)|0x80);
+  78   1        for(i=8;i>0;i--)
+  79   1        {
+  80   2          MF522_SI=((ucAddr&0x80)==0x80);
+  81   2          MF522_SCK = 1;
+  82   2          ucAddr<<=1;
+  83   2          MF522_SCK=0;
+  84   2        }
+  85   1        for(i=8;i>0;i--)
+  86   1        {
+  87   2          MF522_SCK = 1;
+  88   2          res<<=1;
+  89   2          res|=(bit)MF522_SO;
+  90   2          MF522_SCK=0;
+  91   2          
+  92   2        }
+  93   1        MF522_NSS = 1;
+  94   1        MF522_SCK = 1;
+  95   1        return res;
+  96   1      }
+  97          /////////////////////////////////////////////////
+  98          //¹¦ÄÜ£ºÖÃÎ»¼Ä´æÆ÷
+  99          //²ÎÊý£ºreg ¼Ä´æÆ÷µØÖ·
+ 100          //²ÎÊý£ºmask ÖÃÎ»Öµ
+ 101          ////////////////////////////////////////////////
+ 102          void SetBitMask(unsigned char reg,unsigned char mask)
+ 103          {
+ 104   1        unsigned char tmp = 0x00;
+ 105   1        tmp = ReadRawRC(reg);
+ 106   1        WriteRawRC(reg, tmp | mask);  // clear bit mask
+ 107   1      }
+ 108          
+ 109          /////////////////////////////////////////////////////////////////////
+ 110          //¹¦    ÄÜ£ºÇåRC522¼Ä´æÆ÷Î»
+ 111          //²ÎÊýËµÃ÷£ºreg[IN]:¼Ä´æÆ÷µØÖ·
+ 112          //          mask[IN]:ÇåÎ»Öµ
+ 113          /////////////////////////////////////////////////////////////////////
+ 114          void ClearBitMask(unsigned char reg,unsigned char mask)  
+ 115          {
+ 116   1          char tmp = 0x0;
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 3   
+
+ 117   1          tmp = ReadRawRC(reg);
+ 118   1          WriteRawRC(reg, tmp & ~mask);  // clear bit mask
+ 119   1      } 
+ 120          
+ 121          /////////////////////////////////////////////////////////////////////
+ 122          //¹¦    ÄÜ£ºÑ¡¶¨¿¨Æ¬
+ 123          //²ÎÊýËµÃ÷: pSnr[IN]:¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+ 124          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 125          /////////////////////////////////////////////////////////////////////
+ 126          char PcdSelect(unsigned char *pSnr)
+ 127          {
+ 128   1          char status;
+ 129   1          unsigned char i;
+ 130   1          unsigned int  unLen;
+ 131   1          unsigned char ucComMF522Buf[MAXRLEN]; 
+ 132   1          
+ 133   1          ucComMF522Buf[0] = PICC_ANTICOLL1;
+ 134   1          ucComMF522Buf[1] = 0x70;
+ 135   1          ucComMF522Buf[6] = 0;
+ 136   1          for (i=0; i<4; i++)
+ 137   1          {
+ 138   2            ucComMF522Buf[i+2] = *(pSnr+i);
+ 139   2            ucComMF522Buf[6]  ^= *(pSnr+i);
+ 140   2          }
+ 141   1          CalulateCRC(ucComMF522Buf,7,&ucComMF522Buf[7]);
+ 142   1        
+ 143   1          ClearBitMask(Status2Reg,0x08);
+ 144   1      
+ 145   1          status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,9,ucComMF522Buf,&unLen);
+ 146   1          
+ 147   1          if ((status == MI_OK) && (unLen == 0x18))
+ 148   1          {   status = MI_OK;  }
+ 149   1          else
+ 150   1          {   status = MI_ERR;    }
+ 151   1      
+ 152   1          return status;
+ 153   1      }
+ 154          
+ 155          /////////////////////////////////////////////////////////////////////
+ 156          //¹¦    ÄÜ£ºÑéÖ¤¿¨Æ¬ÃÜÂë
+ 157          //²ÎÊýËµÃ÷: auth_mode[IN]: ÃÜÂëÑéÖ¤Ä£Ê½
+ 158          //                 0x60 = ÑéÖ¤AÃÜÔ¿
+ 159          //                 0x61 = ÑéÖ¤BÃÜÔ¿ 
+ 160          //          addr[IN]£º¿éµØÖ·
+ 161          //          pKey[IN]£ºÃÜÂë
+ 162          //          pSnr[IN]£º¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+ 163          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 164          /////////////////////////////////////////////////////////////////////               
+ 165          char PcdAuthState(unsigned char auth_mode,unsigned char addr,unsigned char *pKey,unsigned char *pSnr)
+ 166          {
+ 167   1          char status;
+ 168   1          unsigned int  unLen;
+ 169   1          unsigned char i,ucComMF522Buf[MAXRLEN]; 
+ 170   1      
+ 171   1          ucComMF522Buf[0] = auth_mode;
+ 172   1          ucComMF522Buf[1] = addr;
+ 173   1          for (i=0; i<6; i++)
+ 174   1          {    ucComMF522Buf[i+2] = *(pKey+i);   }
+ 175   1          for (i=0; i<6; i++)
+ 176   1          {    ucComMF522Buf[i+8] = *(pSnr+i);   }
+ 177   1       //   memcpy(&ucComMF522Buf[2], pKey, 6); 
+ 178   1       //   memcpy(&ucComMF522Buf[8], pSnr, 4); 
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 4   
+
+ 179   1          
+ 180   1          status = PcdComMF522(PCD_AUTHENT,ucComMF522Buf,12,ucComMF522Buf,&unLen);
+ 181   1          if ((status != MI_OK) || (!(ReadRawRC(Status2Reg) & 0x08)))
+ 182   1          {   status = MI_ERR;   }   
+ 183   1          return status;
+ 184   1      }
+ 185          
+ 186          
+ 187          /////////////////////////////////////////////////////////////////////
+ 188          //¹¦    ÄÜ£º¶ÁÈ¡M1¿¨Ò»¿éÊý¾Ý
+ 189          //²ÎÊýËµÃ÷: addr[IN]£º¿éµØÖ·
+ 190          //          pData[OUT]£º¶Á³öµÄÊý¾Ý£¬16×Ö½Ú
+ 191          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 192          ///////////////////////////////////////////////////////////////////// 
+ 193          char PcdRead(unsigned char addr,unsigned char *pData)
+ 194          {
+ 195   1          char status;
+ 196   1          unsigned int  unLen;
+ 197   1          unsigned char i,ucComMF522Buf[MAXRLEN]; 
+ 198   1          
+ 199   1        
+ 200   1          ucComMF522Buf[0] = PICC_READ;
+ 201   1          ucComMF522Buf[1] = addr;
+ 202   1          CalulateCRC(ucComMF522Buf,2,&ucComMF522Buf[2]);
+ 203   1         
+ 204   1          status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,4,ucComMF522Buf,&unLen);
+ 205   1          if ((status == MI_OK)&& unLen == 0x90)
+ 206   1          {
+ 207   2              for (i=0; i<16; i++)
+ 208   2              {    
+ 209   3                *(pData+i) = ucComMF522Buf[i];
+ 210   3              }
+ 211   2          }
+ 212   1          else
+ 213   1          {
+ 214   2      
+ 215   2              status = MI_ERR;   
+ 216   2          }
+ 217   1          
+ 218   1          return status;
+ 219   1      }
+ 220          
+ 221          /////////////////////////////////////////////////////////////////////
+ 222          //¹¦    ÄÜ£ºÐ´Êý¾Ýµ½M1¿¨Ò»¿é
+ 223          //²ÎÊýËµÃ÷: addr[IN]£º¿éµØÖ·
+ 224          //          pData[IN]£ºÐ´ÈëµÄÊý¾Ý£¬16×Ö½Ú
+ 225          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 226          /////////////////////////////////////////////////////////////////////                  
+ 227          char PcdWrite(unsigned char addr,unsigned char *pData)
+ 228          {
+ 229   1          char status;
+ 230   1          unsigned int  unLen;
+ 231   1          unsigned char i,ucComMF522Buf[MAXRLEN]; 
+ 232   1          
+ 233   1          ucComMF522Buf[0] = PICC_WRITE;
+ 234   1          ucComMF522Buf[1] = addr;
+ 235   1          CalulateCRC(ucComMF522Buf,2,&ucComMF522Buf[2]);
+ 236   1          
+ 237   1        
+ 238   1          //Ñ¡µØÖ·
+ 239   1          status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,4,ucComMF522Buf,&unLen);
+ 240   1      
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 5   
+
+ 241   1          if ((status != MI_OK) || (unLen != 4) || ((ucComMF522Buf[0] & 0x0F) != 0x0A))
+ 242   1          {   status = MI_ERR;   }
+ 243   1           
+ 244   1      
+ 245   1          //·¢Êý¾Ý  
+ 246   1          if (status == MI_OK)
+ 247   1          {
+ 248   2              //memcpy(ucComMF522Buf, pData, 16);
+ 249   2              for (i=0; i<16; i++)
+ 250   2              {    ucComMF522Buf[i] = *(pData+i);   }
+ 251   2              CalulateCRC(ucComMF522Buf,16,&ucComMF522Buf[16]);
+ 252   2      
+ 253   2              status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,18,ucComMF522Buf,&unLen);
+ 254   2              if ((status != MI_OK) || (unLen != 4) || ((ucComMF522Buf[0] & 0x0F) != 0x0A))
+ 255   2              {   status = MI_ERR;   }
+ 256   2          }
+ 257   1          
+ 258   1          return status;
+ 259   1      }
+ 260          
+ 261          /////////////////////////////////////////////////////////////////////
+ 262          //¹¦    ÄÜ£ºÑ°¿¨
+ 263          //²ÎÊýËµÃ÷: req_code[IN]:Ñ°¿¨·½Ê½
+ 264          //                0x52 = Ñ°¸ÐÓ¦ÇøÄÚËùÓÐ·ûºÏ14443A±ê×¼µÄ¿¨
+ 265          //                0x26 = Ñ°Î´½øÈëÐÝÃß×´Ì¬µÄ¿¨
+ 266          //          pTagType[OUT]£º¿¨Æ¬ÀàÐÍ´úÂë
+ 267          //                0x4400 = Mifare_UltraLight
+ 268          //                0x0400 = Mifare_One(S50)
+ 269          //                0x0200 = Mifare_One(S70)
+ 270          //                0x0800 = Mifare_Pro(X)
+ 271          //                0x4403 = Mifare_DESFire
+ 272          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 273          /////////////////////////////////////////////////////////////////////
+ 274          char PcdRequest(unsigned char req_code,unsigned char *pTagType)
+ 275          {
+ 276   1         char status;  
+ 277   1         unsigned int  unLen;
+ 278   1         unsigned char ucComMF522Buf[MAXRLEN]; 
+ 279   1      
+ 280   1         ClearBitMask(Status2Reg,0x08);//Èí¼þÇåÁã±êÖ¾Î»
+ 281   1         WriteRawRC(BitFramingReg,0x07);//Í£Ö¹·¢ËÍ£¬ÉèÖÃ½ÓÊÕµ½µÄLSB·ÅÔÚÎ»0£¬½ÓÊÕµ½µÄµÚ2 Î»·ÅÔÚÎ»1£¬D2D1D0=111±íÊ
+             -¾×îºóÒ»¸ö×Ö½Ú·¢7Î»
+ 282   1         SetBitMask(TxControlReg,0x03);//¶ÔÌìÏßÊÇ·ñ·¢ËÍµ÷ÖÆÊý¾ÝÉèÖÃ£¬¿ªÆôÌìÏß
+ 283   1       
+ 284   1         ucComMF522Buf[0] = req_code;
+ 285   1      
+ 286   1         status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,1,ucComMF522Buf,&unLen);
+ 287   1         
+ 288   1         if ((status == MI_OK) && (unLen == 0x10))    //´«»Ø16Î»¿¨Æ¬ÀàÐÍ´úÂë
+ 289   1         {    
+ 290   2             *pTagType     = ucComMF522Buf[0];
+ 291   2             *(pTagType+1) = ucComMF522Buf[1];
+ 292   2         }
+ 293   1         else
+ 294   1         {   status = MI_ERR;   }
+ 295   1         
+ 296   1         return status;
+ 297   1      }
+ 298          
+ 299          /////////////////////////////////////////////////////////////////////
+ 300          //¹¦    ÄÜ£º·À³å×²
+ 301          //²ÎÊýËµÃ÷: pSnr[OUT]:¿¨Æ¬ÐòÁÐºÅ£¬4×Ö½Ú
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 6   
+
+ 302          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 303          /////////////////////////////////////////////////////////////////////  
+ 304          char PcdAnticoll(unsigned char *pSnr)
+ 305          {
+ 306   1          char status;
+ 307   1          unsigned char i,snr_check=0;
+ 308   1          unsigned int  unLen;
+ 309   1          unsigned char ucComMF522Buf[MAXRLEN]; 
+ 310   1          
+ 311   1      
+ 312   1          ClearBitMask(Status2Reg,0x08);
+ 313   1          WriteRawRC(BitFramingReg,0x00);
+ 314   1          ClearBitMask(CollReg,0x80);
+ 315   1       
+ 316   1          ucComMF522Buf[0] = PICC_ANTICOLL1;
+ 317   1          ucComMF522Buf[1] = 0x20;
+ 318   1      
+ 319   1          status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,2,ucComMF522Buf,&unLen);
+ 320   1      
+ 321   1          if (status == MI_OK)
+ 322   1          {
+ 323   2             for (i=0; i<4; i++)
+ 324   2               {   
+ 325   3                   *(pSnr+i)  = ucComMF522Buf[i];
+ 326   3                   snr_check ^= ucComMF522Buf[i];
+ 327   3               }
+ 328   2               if (snr_check != ucComMF522Buf[i])
+ 329   2               {   status = MI_ERR;    }
+ 330   2          }
+ 331   1          
+ 332   1          SetBitMask(CollReg,0x80);
+ 333   1          return status;
+ 334   1      }
+ 335          /////////////////////////////////////////////////////////////////////
+ 336          //¹¦    ÄÜ£ºÍ¨¹ýRC522ºÍISO14443¿¨Í¨Ñ¶
+ 337          //²ÎÊýËµÃ÷£ºCommand[IN]:RC522ÃüÁî×Ö
+ 338          //          pInData[IN]:Í¨¹ýRC522·¢ËÍµ½¿¨Æ¬µÄÊý¾Ý
+ 339          //          InLenByte[IN]:·¢ËÍÊý¾ÝµÄ×Ö½Ú³¤¶È
+ 340          //          pOutData[OUT]:½ÓÊÕµ½µÄ¿¨Æ¬·µ»ØÊý¾Ý
+ 341          //          *pOutLenBit[OUT]:·µ»ØÊý¾ÝµÄÎ»³¤¶È
+ 342          /////////////////////////////////////////////////////////////////////
+ 343          char PcdComMF522(unsigned char Command, 
+ 344                           unsigned char *pInData, 
+ 345                           unsigned char InLenByte,
+ 346                           unsigned char *pOutData, 
+ 347                           unsigned int  *pOutLenBit)
+ 348          {
+ 349   1          char status = MI_ERR;
+ 350   1          unsigned char irqEn   = 0x00;
+ 351   1          unsigned char waitFor = 0x00;
+ 352   1          unsigned char lastBits;
+ 353   1          unsigned char n;
+ 354   1          unsigned int i;
+ 355   1          switch (Command)
+ 356   1          {
+ 357   2             case PCD_AUTHENT:   
+ 358   2                irqEn   = 0x12;
+ 359   2                waitFor = 0x10;
+ 360   2                break;
+ 361   2             case PCD_TRANSCEIVE:
+ 362   2                irqEn   = 0x77;
+ 363   2                waitFor = 0x30;
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 7   
+
+ 364   2                break;
+ 365   2             default:
+ 366   2               break;
+ 367   2          }
+ 368   1         
+ 369   1          WriteRawRC(ComIEnReg,irqEn|0x80);     //ÉèÖÃ¸÷ÖÐ¶ÏÇëÇó´«µÝµ½IRQÒý½Å£¬D7=1:ÓÐÖÐ¶ÏÊ±IRQÎªµÍ£¬
+ 370   1          ClearBitMask(ComIrqReg,0x80);         //ComIrqRegÆÁ±ÎÎ»ÇåÁã
+ 371   1          WriteRawRC(CommandReg,PCD_IDLE);      //È¡Ïûµ±Ç°ÃüÁî
+ 372   1          SetBitMask(FIFOLevelReg,0x80);        //FIFO»º³åÇø¶ÁºÍÐ´Ö¸ÕëÒÔ¼°FIFO»º³åÇøÒç³ö´íÎó±êÖ¾BufferOvflÇåÁã
+ 373   1          
+ 374   1          for (i=0; i<InLenByte; i++)
+ 375   1          {   
+ 376   2            WriteRawRC(FIFODataReg, pInData[i]);    //Òª·¢ËÍµÄÊý¾ÝÐ´ÈëFIFO»º³åÇø
+ 377   2          }   
+ 378   1          WriteRawRC(CommandReg, Command);
+ 379   1         
+ 380   1          
+ 381   1          if (Command == PCD_TRANSCEIVE)
+ 382   1          {    
+ 383   2            SetBitMask(BitFramingReg,0x80);         //start TX
+ 384   2          }   
+ 385   1          
+ 386   1          i = 600;//¸ù¾ÝÊ±ÖÓÆµÂÊµ÷Õû£¬²Ù×÷M1¿¨×î´óµÈ´ýÊ±¼ä25ms
+ 387   1          do 
+ 388   1          {
+ 389   2               n = ReadRawRC(ComIrqReg);    //¶ÁÖÐ¶ÏÇëÇó±êÖ¾
+ 390   2               i--;
+ 391   2          }
+ 392   1          while((i!=0) && !(n&0x01) && !(n&waitFor));
+ 393   1          
+ 394   1          ClearBitMask(BitFramingReg,0x80);   //stop TX
+ 395   1              
+ 396   1          if (i!=0)
+ 397   1          {    
+ 398   2               if(!(ReadRawRC(ErrorReg)&0x1B))    //¼ì²âÊÇ·ñÓÐ³öÏÖµÄÖÖ´íÎó
+ 399   2               {
+ 400   3                   status = MI_OK;
+ 401   3                   if (n & irqEn & 0x01)
+ 402   3                   {   status = MI_NOTAGERR;   }
+ 403   3                   if (Command == PCD_TRANSCEIVE)
+ 404   3                   {
+ 405   4                      n = ReadRawRC(FIFOLevelReg);    //¶ÁFIFO»º³åÇøÖÐµÄ×Ö½ÚÊý
+ 406   4                      lastBits = ReadRawRC(ControlReg) & 0x07;    //²é¿´×îºó½ÓÊÕµ½µÄ×Ö½ÚÓÐÐ§Î»µÄÊýÄ¿£¬Èç¹ûÎª0ÔòÕû¸ö
+             -×Ö½ÚÓÐÐ§
+ 407   4                      if (lastBits)
+ 408   4                      {   *pOutLenBit = (n-1)*8 + lastBits;   }
+ 409   4                      else
+ 410   4                      {   *pOutLenBit = n*8;   }
+ 411   4                      if (n == 0)
+ 412   4                      {   n = 1;    }
+ 413   4                      if (n > MAXRLEN)
+ 414   4                      {   n = MAXRLEN;   }
+ 415   4                      for (i=0; i<n; i++)
+ 416   4                      {   pOutData[i] = ReadRawRC(FIFODataReg);    }    //»ñÈ¡½ÓÊÕµ½µÄÊý¾Ý
+ 417   4                  }
+ 418   3               }
+ 419   2               else
+ 420   2               {   status = MI_ERR;   }
+ 421   2              
+ 422   2         }
+ 423   1         SetBitMask(ControlReg,0x80);           // stop timer now
+ 424   1         WriteRawRC(CommandReg,PCD_IDLE);       //È¡Ïûµ±Ç°ÃüÁî
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 8   
+
+ 425   1         return status;
+ 426   1      }
+ 427          /////////////////////////////////////////////////////////////////////
+ 428          //ÓÃMF522¼ÆËãCRC16º¯Êý
+ 429          /////////////////////////////////////////////////////////////////////
+ 430          void CalulateCRC(unsigned char *pIndata,unsigned char len,unsigned char *pOutData)
+ 431          {
+ 432   1          unsigned char i,n;
+ 433   1          ClearBitMask(DivIrqReg,0x04);     ///ÇåCRCÍê³É±êÖ¾Î»
+ 434   1          WriteRawRC(CommandReg,PCD_IDLE);  //È¡Ïûµ±Ç°ÃüÁî
+ 435   1          SetBitMask(FIFOLevelReg,0x80);    //FIFO»º³åÇø¶ÁºÍÐ´Ö¸ÕëÒÔ¼°FIFO»º³åÇøÒç³ö´íÎó±êÖ¾BufferOvflÇåÁã
+ 436   1          for (i=0; i<len; i++)
+ 437   1          {   WriteRawRC(FIFODataReg, *(pIndata+i));   }
+ 438   1          WriteRawRC(CommandReg, PCD_CALCCRC);    //½øÐÐCRC¼ÆËã
+ 439   1          i = 0xFF;
+ 440   1          do 
+ 441   1          {
+ 442   2              n = ReadRawRC(DivIrqReg);
+ 443   2              i--;
+ 444   2          }
+ 445   1          while ((i!=0) && !(n&0x04));  //¼ì²âCRCÍê³É±êÖ¾Î»
+ 446   1          pOutData[0] = ReadRawRC(CRCResultRegL);   //¶ÁCRC¼ÆËã½á¹û
+ 447   1          pOutData[1] = ReadRawRC(CRCResultRegM);
+ 448   1      }
+ 449          
+ 450          /////////////////////////////////////////////////////////////////////
+ 451          //¹¦    ÄÜ£ºÃüÁî¿¨Æ¬½øÈëÐÝÃß×´Ì¬
+ 452          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 453          /////////////////////////////////////////////////////////////////////
+ 454          char PcdHalt(void)
+ 455          {
+ 456   1          char status;
+ 457   1          unsigned int  unLen;
+ 458   1          unsigned char ucComMF522Buf[MAXRLEN]; 
+ 459   1      
+ 460   1          ucComMF522Buf[0] = PICC_HALT;
+ 461   1          ucComMF522Buf[1] = 0;
+ 462   1          CalulateCRC(ucComMF522Buf,2,&ucComMF522Buf[2]);
+ 463   1       
+ 464   1          status = PcdComMF522(PCD_TRANSCEIVE,ucComMF522Buf,4,ucComMF522Buf,&unLen);
+ 465   1      
+ 466   1          return MI_OK;
+ 467   1      }
+ 468          
+ 469          /////////////////////////////////////////////////////////////////////
+ 470          //¹¦    ÄÜ£º¸´Î»RC522
+ 471          //·µ    »Ø: ³É¹¦·µ»ØMI_OK
+ 472          /////////////////////////////////////////////////////////////////////
+ 473          char PcdReset(void)
+ 474          {
+ 475   1          MF522_RST=1;
+ 476   1          _nop_();
+ 477   1          MF522_RST=0;
+ 478   1          _nop_();
+ 479   1          MF522_RST=1;
+ 480   1           _nop_();
+ 481   1          WriteRawRC(CommandReg,PCD_RESETPHASE);
+ 482   1          _nop_();
+ 483   1          
+ 484   1          WriteRawRC(ModeReg,0x3D);           //Æô¶¯·¢ËÍÆ÷£¬SIGIN¸ßÓÐÐ§  £¬ºÍMifare¿¨Í¨Ñ¶£¬CRC³õÊ¼Öµ0x6363
+ 485   1          WriteRawRC(TReloadRegL,30);         //¶¨Ê±Æ÷ÖØ×°ÔØÖµ    
+ 486   1          WriteRawRC(TReloadRegH,0);
+C51 COMPILER V9.56.0.0   MFRC522                                                           02/28/2021 15:17:20 PAGE 9   
+
+ 487   1          WriteRawRC(TModeReg,0x8D);          //¶¨Ê±Æ÷ÉèÖÃ£¬·ÖÆµÖµ
+ 488   1          WriteRawRC(TPrescalerReg,0x3E);     //¶¨Ê±Æ÷ÉèÖÃ
+ 489   1          WriteRawRC(TxAutoReg,0x40);       
+ 490   1         
+ 491   1          return MI_OK;
+ 492   1      }
+ 493          
+ 494          
+ 495          /////////////////////////////////////////////////////////////////////
+ 496          //¿ªÆôÌìÏß  
+ 497          //Ã¿´ÎÆô¶¯»ò¹Ø±ÕÌìÏÕ·¢ÉäÖ®¼äÓ¦ÖÁÉÙÓÐ1msµÄ¼ä¸ô
+ 498          /////////////////////////////////////////////////////////////////////
+ 499          void PcdAntennaOn(){
+ 500   1          unsigned char i;
+ 501   1          i = ReadRawRC(TxControlReg);
+ 502   1          if (!(i & 0x03))
+ 503   1          {
+ 504   2              SetBitMask(TxControlReg, 0x03);
+ 505   2          }
+ 506   1      }
+ 507          
+ 508          
+ 509          /////////////////////////////////////////////////////////////////////
+ 510          //¹Ø±ÕÌìÏß
+ 511          /////////////////////////////////////////////////////////////////////
+ 512          void PcdAntennaOff()
+ 513          {
+ 514   1          ClearBitMask(TxControlReg, 0x03);
+ 515   1      }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =   1891    ----
+   CONSTANT SIZE    =   ----    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----     191
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)

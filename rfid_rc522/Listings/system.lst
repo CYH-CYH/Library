@@ -1,0 +1,232 @@
+C51 COMPILER V9.56.0.0   SYSTEM                                                            02/28/2021 15:17:21 PAGE 1   
+
+
+C51 COMPILER V9.56.0.0, COMPILATION OF MODULE SYSTEM
+OBJECT MODULE PLACED IN .\Objects\system.obj
+COMPILER INVOKED BY: C:\Keil_v5\C51\BIN\C51.EXE system.c COMPACT OPTIMIZE(8,SPEED) BROWSE DEBUG OBJECTEXTEND PRINT(.\Lis
+                    -tings\system.lst) TABS(2) OBJECT(.\Objects\system.obj)
+
+line level    source
+
+   1          #include <reg52.h>
+   2          #include "uart.h"
+   3          #include <mfrc522.h>
+   4          #include "system.h"
+   5          
+   6          char code DefaultKey[6] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff}; //初始密码
+   7          unsigned char g_ucTempbuf1[4];  //返回卡号  
+   8          static char w_ucTempbuf[17]={'2','0','1','8','3','1','0','8','2','4','0','5',-1};//待写入的数据
+   9          static unsigned char g_ucTempbuf2[17]; //返回块中16位数据 
+  10          sfr   RCAP2LH =   0xCA;
+  11          sfr   T2LH    =   0xCC;
+  12          sbit f = P2^5;
+  13          sbit led = P2^0;
+  14          unsigned char addr;
+  15          unsigned char len;
+  16          unsigned char dataLen=17;//读取或者写入卡信息的长度
+  17          ///////////////////////////////////////////
+  18          //功能：进行通信系统的初始化
+  19          //////////////////////////////////////////
+  20          void initSystem()
+  21          {
+  22   1        initUart();         //串口通信初始化
+  23   1        PcdReset();         //rfid_rc522通信初始化
+  24   1        PcdAntennaOff(); 
+  25   1        PcdAntennaOn();
+  26   1        //M500PcdConfigISOType('A');
+  27   1        addr = 0;
+  28   1      }
+  29          
+  30          ///////////////////////////////////////////////////////////////////////
+  31          // Delay 10ms
+  32          ///////////////////////////////////////////////////////////////////////
+  33          void delay(unsigned int _10ms)
+  34          {
+*** WARNING C235 IN LINE 34 OF system.c: parameter 1: different types
+  35   1      #ifndef NO_TIMER2
+  36   1          RCAP2LH = RCAP2_10ms;
+  37   1          T2LH    = RCAP2_10ms;
+  38   1          
+  39   1          TR2 = TRUE;
+  40   1          while (_10ms--)
+  41   1          {
+  42   2            while (!TF2);
+  43   2            TF2 = FALSE;
+  44   2          }
+  45   1          TR2 = FALSE;
+  46   1      #else
+                  while (_10ms--)
+                  {
+                    delay_50us(19);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+C51 COMPILER V9.56.0.0   SYSTEM                                                            02/28/2021 15:17:21 PAGE 2   
+
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid )
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(20);
+                    if (CmdValid)
+                        return;
+                    delay_50us(19);
+                    if (CmdValid)
+                        return;
+                  }
+              #endif
+  81   1      }
+  82          
+  83          ///////////////////////////////////////////////
+  84          //功能：蜂鸣器响应
+  85          ///////////////////////////////////////////////
+  86          void feeb()
+  87          {
+  88   1        f=1;
+  89   1        delay(1);     //延时大约100ms   通过修改此延时时间达到不同的发声效果  
+  90   1        f=0;
+  91   1        delay(1);
+  92   1        
+  93   1      }
+  94          
+  95          
+  96          void LED()
+  97          {
+  98   1        led=0;
+  99   1        delay(1);     //延时大约100ms   通过修改此延时时间达到不同的发声效果  
+ 100   1        led=1;
+ 101   1        delay(1);
+ 102   1        
+ 103   1      }
+ 104          ///////////////////////////////////////////////////
+ 105          //中断服务函数
+ 106          //功能：将从RC522中接收到的数据填入SBUF中
+ 107          //参数：接收到的数据
+ 108          //////////////////////////////////////////////////
+ 109          void isr_UART() interrupt 4 using 1
+ 110          {
+ 111   1        unsigned char i;
+ 112   1        if(TI){
+ 113   2          TI=0;
+ 114   2          for(i=0;i<dataLen;i++){
+ 115   3            SBUF=g_ucTempbuf2[i];
+C51 COMPILER V9.56.0.0   SYSTEM                                                            02/28/2021 15:17:21 PAGE 3   
+
+ 116   3            while(!TI);
+ 117   3            TI=0;     
+ 118   3          }
+ 119   2          REN=1;
+ 120   2        }
+ 121   1      }
+ 122          ///////////////////////////////////////////////
+ 123          //功能：寻卡
+ 124          /////////////////////////////////////////////
+ 125          void readCart()
+ 126          {
+ 127   1        char status;
+ 128   1        while(1)
+ 129   1        {
+ 130   2          unsigned char status;
+ 131   2          
+ 132   2          status = PcdRequest(PICC_REQALL, g_ucTempbuf1);//*PICC_REQALL=0x52:寻天线区内所有符合14443A标准的卡  P
+             -ICC_REQIDL=0x26:只寻未进入休眠状态的卡                                              //寻卡失败
+ 133   2          if (status == MI_OK)
+ 134   2          {
+ 135   3            status = PcdAnticoll(g_ucTempbuf1);           //防冲撞处理，输出卡片序列号，4字节 
+ 136   3          }
+ 137   2          
+ 138   2          if (status == MI_OK)
+ 139   2          {
+ 140   3            status = PcdSelect(g_ucTempbuf1);    //选择卡片，输入卡片序列号，4字节
+ 141   3          }
+ 142   2          
+ 143   2          if (status == MI_OK) 
+ 144   2          {
+ 145   3            status = PcdAuthState(PICC_AUTHENT1A, 1, DefaultKey, g_ucTempbuf1);//打开天线
+ 146   3            feeb();
+ 147   3          }
+ 148   2          if (status == MI_OK)   
+ 149   2          {
+ 150   3            status = PcdRead(1, g_ucTempbuf2);//读卡---第一个扇区的数据块一
+ 151   3          }
+ 152   2          if(status == MI_OK)
+ 153   2          {
+ 154   3            g_ucTempbuf2[16]=0x11;
+ 155   3            CALL_isr_UART();
+ 156   3            LED();
+ 157   3          }
+ 158   2        } 
+ 159   1      }
+*** WARNING C280 IN LINE 127 OF system.c: 'status': unreferenced local variable
+ 160          //////////////////////////////////////////////////////////////////////////
+ 161          //写卡------（注释：我的程序是只更改一次信息，也可以用中断直接写入信息）
+ 162          //////////////////////////////////////////////////////////////////////////
+ 163          void writeCart()
+ 164          {
+ 165   1            unsigned char status;
+ 166   1          
+ 167   1          status = PcdRequest(PICC_REQALL, g_ucTempbuf1);//*PICC_REQALL=0x52:寻天线区内所有符合14443A标准的卡  P
+             -ICC_REQIDL=0x26:只寻未进入休眠状态的卡                                              //寻卡失败
+ 168   1          if (status == MI_OK)
+ 169   1          {
+ 170   2            status = PcdAnticoll(g_ucTempbuf1);           //防冲撞处理，输出卡片序列号，4字节 
+ 171   2          }
+ 172   1          
+ 173   1          if (status == MI_OK)
+ 174   1          {
+C51 COMPILER V9.56.0.0   SYSTEM                                                            02/28/2021 15:17:21 PAGE 4   
+
+ 175   2            status = PcdSelect(g_ucTempbuf1);    //选择卡片，输入卡片序列号，4字节
+ 176   2          }
+ 177   1          
+ 178   1          if (status == MI_OK) 
+ 179   1          {
+ 180   2            status = PcdAuthState(PICC_AUTHENT1A, 1, DefaultKey, g_ucTempbuf1);//打开天线
+ 181   2            feeb();
+ 182   2          }
+ 183   1          if (status == MI_OK)   
+ 184   1          {
+ 185   2            status = PcdWrite(1, w_ucTempbuf);//读卡---第一个扇区的数据块一
+ 186   2          }
+ 187   1          if (status == MI_OK)   
+ 188   1          {
+ 189   2            status = PcdRead(1, g_ucTempbuf2);//读卡---第一个扇区的数据块一
+ 190   2          }
+ 191   1          if(status == MI_OK)
+ 192   1          {
+ 193   2            g_ucTempbuf2[16]=0x11;
+ 194   2            CALL_isr_UART();
+ 195   2            LED();
+ 196   2          }
+ 197   1      }
+ 198            
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    362    ----
+   CONSTANT SIZE    =      6    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =     41       2
+   DATA SIZE        =   ----    ----
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  2 WARNING(S),  0 ERROR(S)

@@ -1,0 +1,6 @@
+".\Objects\mfrc522.obj",
+".\Objects\uart.obj",
+".\Objects\main.obj",
+".\Objects\system.obj" 
+TO ".\Objects\rfid" 
+PRINT(".\Listings\rfid.m51") RAMSIZE(256) 
