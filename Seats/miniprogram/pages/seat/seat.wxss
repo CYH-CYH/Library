@@ -1,0 +1,15 @@
+.seatContainer{
+  width:100%;
+  height:100%;
+  color:#000;
+}
+.svFloor{
+  height:600rpx;
+}
+.svFloor view{
+  height:88rpx;
+  align-content: center;
+  text-align: center;
+  border:1px solid #bbb;
+  margin:5rpx;
+}

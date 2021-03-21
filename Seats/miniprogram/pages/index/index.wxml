@@ -1,0 +1,14 @@
+<view class="container">
+  <view class="login">
+    <view class="headImg">
+     <image src="{{bgImg}}" mode="scaleToFill"></image>
+    </view>
+    <view class="userLogin">
+      <input type="number" placeholder="请输入学号"></input>
+      <input password placeholder="请输入密码"></input>
+      <canvas></canvas>
+      <input type="text" placeholder="请输入验证码"></input>
+      <button type="primary" bindtap="loginEvent">登录</button>
+    </view>
+  </view>
+</view> 

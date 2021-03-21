@@ -1,0 +1,16 @@
+<view class="title"></view>
+  <view class="containerSeats">
+    <view class="containerCav">
+      <view class="pos">R</view>
+        <view wx:for="{{Rlist}}" wx:key="item" wx:for-item="arr" wx:for-index="i" style="height:{{seatsHeight/allSeatColum}}%; border:1px solid #fff">
+          <block wx:for="{{arr}}">
+          <image wx:if="{{item==0}}" src="{{seatImgPath0}}" data-seatstate="{{item}}"  data-name="{{position+'R'+(i+1)+(index+1}}"   bindtap="selecteSeat"></image>
+          <!-- <image wx:elif="{{item==1}}" src="{{seatImgPath1}}" data-seatstate="{{item}}" data-name="{{position+'R'+(i+1)+(index+1}}" bindtap="selecteSeat"></image>
+          <image wx:else data-seatstate="{{item}}" data-name="{{position+'R'+(i+1)+(index+1}}" bindtap="selecteSeat"></image> -->
+        </block>
+        </view>
+    </view>
+    <view class="containerCav">
+      <view class="pos">L</view>
+    </view>
+</view>

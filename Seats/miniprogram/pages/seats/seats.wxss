@@ -1,0 +1,40 @@
+
+/*名言的*/
+.title{ 
+  height:15%;
+  margin:20rpx 0rpx;
+  background:#abc;
+  border:1px solid #fff;
+}
+.containerSeats{
+  height:80%;
+  background: chocolate;
+  display:flex;
+  flex-direction: row;
+  border:1px solid #fff;
+}
+.containerCav{
+  width:50%;
+  background: cornsilk; 
+  border:1px solid #fff;
+  flex-direction: column;
+}
+.pos{
+  height:5%;
+  width:50%;
+  margin:20rpx;
+  text-align: justify;
+  border:1px solid #fff;
+  background: chocolate;
+}
+/*不用类名的原因是因为用了会很麻烦*/
+.containerCav view{
+  display:flex;
+  align-items: center;
+}
+.containerCav view image{
+  margin: 0px 5%;
+  height:32rpx;
+  width:32rpx;
+  border-radius: 50%;
+}

@@ -1,0 +1,38 @@
+/*登录页面*/
+.container{
+  background-image:url("https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fc-ssl.duitang.com%2Fuploads%2Fitem%2F201607%2F21%2F20160721102024_vXFz2.thumb.400_0.gif&refer=http%3A%2F%2Fc-ssl.duitang.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=jpeg?sec=1613293935&t=af4f2c6c1dd9ced4a27f4315088b9c28");
+} 
+/**/
+.login{
+  display:flex;
+  flex-direction: column;
+  justify-content:center;
+}
+
+/**/
+.headImg{
+  display:flex;
+  justify-content:center;
+  flex:3;
+}
+
+.headImg image{
+  height:240rpx;
+  width: 240rpx;
+  border-radius: 50%;
+  border:1px solid #ccc;
+}
+/**/
+.userLogin{
+  border-radius: 18%;
+}
+.userLogin input{
+  margin:20rpx 0rpx;
+  border-radius: 18rpx;
+  height:85rpx;
+  border:1px solid #fff;
+}
+.userLogin button{
+  font-size:18px;
+  font-family: Georgia, '微软雅黑', Times, serif;
+}

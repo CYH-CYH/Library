@@ -1,0 +1,16 @@
+<view class="seatContainer">
+  <swiper calss='swPicture' style="height:{{swiperHeight}}px" indicator-dots="{{indicatorDots}}" autoplay="{{autoplay}}" interval="{{interval}}" duration="{{duration}}">
+      <swiper-item>
+        <image style="background:#aaa">A</image> 
+      </swiper-item>
+      <swiper-item>
+        <image style="background:#bbb">B</image>
+      </swiper-item>
+      <swiper-item>
+        <image style="background:#ccc">C</image>
+      </swiper-item>
+  </swiper>
+  <scroll-view class="svFloor" style="height:{{svHeight}}px" scroll-y>
+   <view wx:for="{{floor}}" wx:key="item">{{item}}</view>
+  </scroll-view>
+</view>
